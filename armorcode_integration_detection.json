@@ -1,0 +1,445 @@
+{
+  "name": "My workflow 7",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1808,
+        -224
+      ],
+      "id": "6eb0be7c-91ff-43e7-a205-3a9723ae1e37",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.accountType === \"org\"\n  ? \"https://api.github.com/orgs/\" + $json.accountId + \"/repos?per_page=100\"\n  : \"https://api.github.com/users/\" + $json.accountId + \"/repos?per_page=100\"\n }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-Github-Api-Version",
+              "value": "2022-11-28"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -1360,
+        -224
+      ],
+      "id": "2648eeb8-fbc7-4284-9ba3-3dbb04c3a85d",
+      "name": "HTTP Request",
+      "retryOnFail": false,
+      "executeOnce": false,
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "vw5FwLKSBEuznnPL",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "22eabecc-d7e9-492f-a451-ac8487566a85",
+              "leftValue": "={{ $json.integrationStatus }}",
+              "rightValue": "HEALTHY",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -480,
+        -224
+      ],
+      "id": "e2ab4bf5-ce7a-4fe4-bf5f-d9e0873b8fba",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "sendTo": "rahulgouda.patil@armorcode.io",
+        "subject": "=[GitHub Monitor] {{$json.totalAffected}} Repositories Affected",
+        "emailType": "text",
+        "message": "=Integration Monitoring Summary\n\nTotal Affected Repositories: {{$json.totalAffected}}\n\n{{$json.summaryReport}}\n\nThis alert was generated automatically.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        -224
+      ],
+      "id": "bb25ed07-ecdf-40e2-8048-1cb19dfa20d0",
+      "name": "Send a message",
+      "webhookId": "59c78292-8ab6-4a1c-a869-65c99d2ecbe8",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "TSEEqfLVyONKkq5A",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/repos/{{$json.full_name}}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2022-11-28"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -928,
+        -224
+      ],
+      "id": "3dbdabe2-0b99-4496-9a10-7e5780af7a22",
+      "name": "HTTP Request1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "vw5FwLKSBEuznnPL",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -256,
+        -416
+      ],
+      "id": "6b078046-3786-434d-8620-88ff07835777",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "jsCode": "const aggregated = $json.data;\n\nif (!aggregated || aggregated.length === 0) {\n  return null;\n}\n\nlet report = \"\";\n\nfor (const r of aggregated) {\n\n  const missing = r.missingFields?.length\n    ? r.missingFields.join(\", \")\n    : \"None\";\n\n  const typeChanges = r.typeChanges?.length\n    ? JSON.stringify(r.typeChanges, null, 2)\n    : \"None\";\n\n  report += `\nAccount: ${r.accountName}\nRepo: ${r.repoName}\nStatus: ${r.integrationStatus}\nMissing Fields: ${missing}\nType Changes: ${typeChanges}\n\n------------------------------\n`;\n\n}\n\nreturn {\n  totalAffected: aggregated.length,\n  summaryReport: report\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        -416
+      ],
+      "id": "4e9f4010-92d5-4174-8847-12111798d821",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3979f31b-4401-454c-8279-54febd1595ad",
+              "leftValue": "={{ $json.totalAffected }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        192,
+        -224
+      ],
+      "id": "f5cc926f-974a-4be4-ad11-0f391eb67cf3",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"tool\": \"github\",\n  \"accountName\": \"RahulPersonal\",\n  \"accountType\": \"user\",\n  \"accountId\": \"Rahulgouda6\",\n  \"endpointType\": \"repo\",\n  \"requiredFields\": {\n    \"id\": \"number\",\n    \"full_name\": \"string\",\n    \"private\": \"boolean\",\n    \"created_at\": \"string\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1584,
+        -224
+      ],
+      "id": "3c78b59f-9017-4bb8-8571-a480299671b0",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const repo = $json;\n\n// pull config from Edit Fields node\nconst config = $item(0).$node[\"Edit Fields\"].json;\n\nconst accountName = config.accountName;\nconst requiredFields = config.requiredFields;\n\nconst repoName = repo.name;\n\n// helper to detect types\nfunction getType(value) {\n  if (Array.isArray(value)) return \"array\";\n  if (value === null) return \"null\";\n  return typeof value;\n}\n\nconst missingFields = [];\nconst typeChanges = [];\n\nfor (const key in requiredFields) {\n\n  if (!(key in repo)) {\n    missingFields.push(key);\n  } else {\n\n    const actualType = getType(repo[key]);\n    const expectedType = requiredFields[key];\n\n    if (actualType !== expectedType) {\n\n      typeChanges.push({\n        field: key,\n        expected: expectedType,\n        actual: actualType\n      });\n\n    }\n\n  }\n\n}\n\nlet integrationStatus = \"HEALTHY\";\n\nif (missingFields.length > 0) {\n  integrationStatus = \"CRITICAL\";\n}\nelse if (typeChanges.length > 0) {\n  integrationStatus = \"HIGH\";\n}\n\nreturn {\n  accountName,\n  repoName,\n  integrationStatus,\n  missingFields,\n  typeChanges\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -704,
+        -224
+      ],
+      "id": "450883f1-e84a-4e51-957e-404f2e983772",
+      "name": "Code Node 3"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "e81196fb-367d-4146-970f-d9cef187dc33",
+              "leftValue": "={{$json.name}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1136,
+        -16
+      ],
+      "id": "9489c5d6-5ed9-4a15-90e4-0d6a6fd8ae62",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "sendTo": "rahulgouda.patil@armrocode.io",
+        "subject": "GitHub API Failure Detected",
+        "emailType": "text",
+        "message": "=GitHub API monitoring detected a failure.  Account: {{$node[\"Edit Fields\"].json.accountName}}  The repository API response did not contain expected fields. This may indicate: • API failure • authentication issue • rate limit issue",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        -48
+      ],
+      "id": "e0b9346f-423c-4739-a81b-d3afcb0df725",
+      "name": "Send a message1",
+      "webhookId": "a4682718-6bcd-4368-98f3-4577b9df8d28",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "TSEEqfLVyONKkq5A",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Code Node 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code Node 3": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "de040c06-a8b3-4fd8-ae83-0db34655b8ea",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "717785ee73d5549b0357a9406a33c61290d453ca52440c3b1373cfd1265850a3"
+  },
+  "id": "XTJKMbr0Jf84eh8Z",
+  "tags": []
+}
