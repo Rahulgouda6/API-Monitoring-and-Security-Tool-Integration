@@ -72,7 +72,7 @@ The final classification is determined by the validation conditions and severity
 
 The following image illustrates the n8n workflow and its sequence of operations.
 
-![API Integration Monitoring Workflow](screenshots/API_Intgration_Workflow.png)
+![API Integration Monitoring Workflow](API_Intgration_Workflow.png)
 
 ## Repository Structure
 
